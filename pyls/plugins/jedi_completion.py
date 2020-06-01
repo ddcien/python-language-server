@@ -72,14 +72,14 @@ def pyls_completions(config, document, position):
     include_class_objects = snippet_support and should_include_class_objects and use_snippets(document, position)
 
     ready_completions = [
-        _format_completion(c, include_params)
+        _format_completion(c, position, include_params)
         for c in completions
     ]
 
     if include_class_objects:
         for c in completions:
             if c.type == 'class':
-                completion_dict = _format_completion(c, False)
+                completion_dict = _format_completion(c, position, False)
                 completion_dict['kind'] = lsp.CompletionItemKind.TypeParameter
                 completion_dict['label'] += ' object'
                 ready_completions.append(completion_dict)
@@ -137,14 +137,24 @@ def use_snippets(document, position):
             not (expr_type in _ERRORS and 'import' in code))
 
 
-def _format_completion(d, include_params=True):
+def _format_completion(d, position, include_params=True):
     completion = {
         'label': _label(d),
         'kind': _TYPE_MAP.get(d.type),
         'detail': _detail(d),
         'documentation': _utils.format_docstring(d.docstring()),
         'sortText': _sort_text(d),
-        'insertText': d.name
+        'insertText': d.name,
+        'textEdit': {
+            'newText': d.name,
+            'range': {
+                'start': {
+                    'line': position['line'],
+                    'character': position['character'] + len(d.complete) - len(d.name),
+                },
+                'end': position,
+            }
+        }
     }
 
     if d.type == 'path':

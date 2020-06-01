@@ -1,6 +1,6 @@
 # Copyright 2017 Palantir Technologies, Inc.
 import logging
-from rope.contrib.codeassist import code_assist, sorted_proposals
+from rope.contrib.codeassist import code_assist, sorted_proposals, starting_offset
 
 from pyls import hookimpl, lsp
 
@@ -37,6 +37,7 @@ def pyls_completions(config, workspace, document, position):
         return []
 
     definitions = sorted_proposals(definitions)
+    start_offset = starting_offset(document.source, offset)
     new_definitions = []
     for d in definitions:
         try:
@@ -48,7 +49,18 @@ def pyls_completions(config, workspace, document, position):
             'kind': _kind(d),
             'detail': '{0} {1}'.format(d.scope or "", d.name),
             'documentation': doc or "",
-            'sortText': _sort_text(d)
+            'sortText': _sort_text(d),
+            'insertText': d.name,
+            'textEdit': {
+                'newText': d.name,
+                'range': {
+                    'start': {
+                        'line': position['line'],
+                        'character': position['character'] + start_offset - offset,
+                    },
+                    'end': position,
+                }
+            }
         })
     definitions = new_definitions
 
